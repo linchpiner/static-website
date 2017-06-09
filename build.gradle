@@ -1,0 +1,28 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'org.asciidoctor:asciidoctor-gradle-plugin:1.5.3'
+    }
+}
+
+apply plugin: 'org.asciidoctor.convert'
+
+asciidoctor {
+    resources {
+        from(sourceDir) {
+            include "**/*.css"
+            include "**/*.js"
+        }
+    }
+    attributes \
+        'source-highlighter': 'prettify'
+        //'source-highlighter': 'coderay'
+}
+
+task copyOutput(type: Copy) {
+    from "$project.buildDir/asciidoc/html5"
+    into "../linchpiner.github.io/"
+}
