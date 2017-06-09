@@ -1,0 +1,589 @@
+:plusplus:  ++
+:gradleug:  https://docs.gradle.org/current/userguide
+:github:    https://github.com
+:jenkins:   https://wiki.jenkins-ci.org/display/JENKINS
+:icons:     font
+
+:sectlinks:
+
+= Gradle for DevOps, Part 1
+
+https://gradle.org/[Gradle] is an open source build automation system, which is
+popular in Java, Groovy, and Scala ecosystems. For example, Android Studio uses
+Gradle to build Android applications. At the same time, there are many reasons
+why you should consider using Gradle in your project, even if it's not Java,
+Groovy or Scala.
+
+We will focus on Gradle's features that allow using Gradle as a DevOps tool.
+It's not about a new tool that should replace, for example, well known
+configuration management or continuous delivery tools. Instead, it's about
+using Gradle as a DevOps "glue" for your existing tools and various scripts.
+There are several obvious use cases for Gradle, such as running external
+scripts from Gradle build file, or running Gradle build file from Jenkins via
+the {jenkins}/Gradle+Plugin[Gradle Plugin]. In addition to that, I want to
+highlight the following:
+
+== Simple Installation
+
+Gradle takes care about your project dependencies, but what is more important,
+it also takes care about dependencies for the build file itself. With
+{gradleug}/gradle_wrapper.html[Gradle Wrapper], the only dependency for your
+Gradle project you need to install on the target machine is Java (JDK or JRE).
+The Gradle Wrapper contains `gradlew` (for Unix-like platforms) and
+`gradlew.bat` (for Windows) files. When you run the corresponding file for the
+first time, it downloads all of the required dependencies. This means that you
+don’t have to manually install Gradle yourself and also that you will use
+exactly the version of Gradle that the build is designed for.
+
+== Automation Framework
+
+Gradle is written in Java and uses Groovy for its domain-specific language
+(DSL). While your primary use case for Gradle as a DevOps tool might be using
+it to call other scripts, you can also extend Gradle project by using the
+existing Java libraries, writing Java or Groovy code. As I mentioned above,
+Gradle will take of all of the dependencies that are required to use your
+Gradle project on a new machine. There are many Java libraries and Gradle
+plugins that might be useful for DevOps, such as Gradle
+{github}/int128/gradle-ssh-plugin[SSH] or
+{github}classmethod/gradle-aws-plugin[AWS] plugins.
+
+== Continuous Delivery Tool for non-JVM Projects
+
+You can use Gradle for build and test phases of your project, even if it's not
+Java, Groovy or Scala. For example, you can build C, C{plusplus}, Go projects
+with Gradle. If, for some reason, you cannot use Gradle for that, you can
+always call a native build tool for your language. At least as a temporary
+solution. 
+
+You can use the same Gradle build to package your project, publish and deploy
+the application. To build your project you should define its dependencies,
+sources (inputs) and artifacts (outputs), which your can use also to automate
+packaging and distribution. As a build tool, Gradle provides very useful
+features, such as {gradleug}/continuous_build.html[continuous build], when
+Gradle waits for changes to the build inputs. When a change occurs, Gradle will
+be automatically executed again and the process repeats.
+
+== Task-Based Approach
+
+Remember your projects where you wrote a number of Bash scripts for various
+actions, such as `deploy.sh` or `publish.sh`? Probably, these script shared the
+common code, which you put in a separate file. In some cases, you need to
+process command line arguments for your scripts to handle different usage
+scenarios. Sometimes, you need to check if a certain condition is met. For
+example, you need to download a huge file, and you want to skip that step if
+the file exists. 
+
+There is a pattern in such projects: there are tasks available for execution
+and there are dependencies between these tasks. Using Bash for such task-based
+approach makes your project portable, but you have to write boilerplate code to
+handle command line arguments and implement dependencies between the tasks.
+Also, you need to document the tasks and keep the documentation up to date. 
+
+With Gradle, you can define all of the tasks and their dependencies and order
+in a consistent way. Let's take a look to several examples:
+
+=== Task Dependency
+
+In this example, we will implement two tasks for your project:
+
+* `provision` task configures the execution environment for your project, for
+  example, installs an application server
+* `deploy` task installs your compiled and packaged application into the
+  environment, prepared by the `provision` task.
+
+For the sake of simplicity, let's assume for the moment that there is only one
+environment. In Gradle, we define these two tasks and specify that `deploy`
+depends on `provision`.
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    doLast {
+        // provisioning code
+    }
+}
+
+task deploy {
+    dependsOn provision
+    doLast {
+        // deployment code
+    }
+}
+----
+
+Now you can use Gradle to execute the `deploy` task:
+
+----
+$ gradle deploy
+:provision
+:deploy
+
+BUILD SUCCESSFUL
+----
+
+As you see, Gradle has executed `provision` before `deploy` to satisfy the
+dependencies between the tasks. It works as expected, but we want to make it
+better: by design we will use `deploy` much more often then `provision`,
+because you need to deploy your application every time you have a new build. At
+the same time, you need to use `provision` only for new environments or when
+you need to change the execution environment (for example, to install a new
+version of the application server). Therefore, you do not need to provision the
+environment from the scratch every time when you deploy a new version. There
+are several options for that:
+
+* Use external configuration management (CM) tool for provisioning (call it
+  from the `provision` task). Most of the modern CM tools allow defining the
+  target state declaratively. If the target system is in the target state, then
+  CM tool does nothing ('idempotency'). At the same time, if there is any
+  change in the definition of the target state or the target system (our
+  execution environment) has a state that differs from the target state, CM
+  tools makes required actions to achieve the target state from the current
+  observable state. In this case, you can use our Gradle tasks as they are and
+  CM tool called from the `provision` task will do nothing, if the environment
+  is already provisioned.
+* Use a predicate or up-to-date check for the `provision` task (see
+  <<task-predicate>> and <<task-up-to-date-check>>).
+* Make the `provision` and `deploy` tasks independent (see <<task-ordering>>).
+
+[[task-predicate]]
+=== Task Predicate
+
+If you do not use a smart configuration management tool for your `provision`
+task, then you can add a check directly to the task:
+
+[source,groovy]
+----
+task provision {
+    doLast {
+        if (/* check if provisioning is required */) { 
+            // provisioning code
+        }
+    }
+}
+----
+
+Alternatively, you can use the `onlyIf`
+{gradleug}/more_about_tasks.html#sec:using_a_predicate[predicate] to let Gradle
+know when it should skip the task:
+
+[source,groovy]
+----
+task provision {
+    onlyIf { /* check if provisioning is required */ }
+    doLast {
+        // provisioning code
+    }
+}
+----
+
+The predicate is evaluated just before the task is due to be executed. For
+example, if provisioning is not required:
+
+----
+$ gradle deploy
+:provision SKIPPED
+:deploy
+
+BUILD SUCCESSFUL
+----
+
+[[task-up-to-date-check]]
+=== Task Up-to-date Check
+
+Another option for a conditional provisioning is to let Gradle decide when it
+needs to execute the `provision` task. In the most common case, a Gradle task
+takes some inputs and generates some outputs. As part of
+{gradleug}/more_about_tasks.html#sec:up_to_date_checks[incremental build],
+Gradle tests whether any of the task inputs or outputs have changed since the
+last build. If they haven’t, Gradle can consider the task up to date and
+therefore skip executing its actions. This is especially efficient if you
+provision a local machine (the same machine where you run Gradle). You should
+define at least one output for the task. In the following example we define a
+directory as the only output for the `provision` task, assuming that the task
+will prepare the environment in that directory:
+
+[source,groovy]
+----
+task provision {
+    outputs.dir("my_dir")
+    doLast {
+        // provisioning code
+        file("my_dir").mkdirs()
+    }
+}
+----
+
+When you execute the `deploy` task for the first time, it 'provisions' the
+environment and creates the `my_dir` directory. For subsequent calls, the
+`provision` task won't be executed:
+
+----
+$ gradle deploy
+:provision
+:deploy
+
+BUILD SUCCESSFUL
+
+$ gradle deploy
+:provision UP-TO-DATE
+:deploy
+
+BUILD SUCCESSFUL
+----
+
+For real use cases, it is reasonable to define the task inputs as well. For the
+`provision` task it can be a definition of the environment in a separate file,
+or it can be a provisioning script in Bash. When Gradle detects that the input
+(provisioning script) is newer than the output (target directory) it executes
+the task:
+
+[source,groovy]
+----
+task provision(type: Exec) {
+    inputs.file("provision.sh")
+    outputs.dir("my_dir")
+    // Execute a Bash scripts that contains provisioning code
+    // Specifically, it should create the target directory
+    commandLine "./provision.sh"
+}
+----
+
+[[task-ordering]]
+=== Task Ordering
+
+As we discussed, other option to skip the `provision` task when you deploy your
+application is to make `provision` and `deploy` task independent:
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    doLast {
+        // provisioning code
+    }
+}
+
+task deploy {
+    doLast {
+        // deployment code
+    }
+}
+----
+
+Now you can execute `deploy` independently of `provision`. If you want to
+provision the environment and deploy your application at the same time, then
+you can specify both tasks as arguments for Gradle, or you can define a new
+task, for example, `all` that depends on both tasks. In both cases, you need to
+set a right order for the `provision` and `deploy` tasks, so when Gradle
+executes both tasks, it executes `deploy` after `provision`:
+
+[source,groovy]
+----
+task deploy {
+    mustRunAfter provision
+    doLast {
+        // deployment code
+    }
+}
+----
+
+Here we specify that `deploy` runs after `provision`. Now we can execute
+`deploy` without provisioning:
+
+----
+$ gradle deploy
+:deploy
+
+BUILD SUCCESSFUL
+----
+
+If you want to provision the environment before deploying the application, then
+you can specify both tasks as command line arguments for Gradle. The order in
+the command line is not important, because you have explicitly set task
+ordering in the Gradle build file:
+
+----
+$ gradle deploy provision
+:provision
+:deploy
+
+BUILD SUCCESSFUL
+----
+
+Alternatively, you can add a new task that depends on both tasks:
+
+[source,groovy]
+----
+task all {
+    dependsOn provision, deploy
+}
+----
+
+Now you can execute the `all` task to provision and deploy:
+
+----
+$ gradle all
+:provision
+:deploy
+:all
+
+BUILD SUCCESSFUL
+----
+
+=== Task Finalizer
+
+Gradle allows defining a
+{gradleug}/more_about_tasks.html#sec:finalizer_tasks[finalizing tasks] for any
+task. Finalizer tasks will be executed even if the finalized task fails and
+finalizer tasks are not executed if the finalized task didn't do any work.
+Example:
+
+[source,groovy]
+----
+task clean {
+    doLast {
+        // clean up code
+    }
+}
+
+task provision {
+    doLast {
+        // provisioning code
+    }
+    finalizedBy clean
+}
+----
+
+----
+$ gradle provision
+:provision
+:clean
+
+BUILD SUCCESSFUL
+----
+
+Finalizer tasks are useful in situations where you need to clean up resources
+created by other tasks regardless of the build failing or succeeding. Another
+useful use case for finalizer tasks is generating new resources (a report, for
+example) using results from the other tasks, which can be used independently or
+all together. For example, you can use `provisionHost1`, `provisionHost2` to
+provision one host, or both tasks to provision all hosts. Then you can use the
+finalizer task to generate a provisioning report.
+
+Note that if you define a finalizer task for several tasks, which have
+dependencies between them, then the finalizer task will be executed only once,
+after the last task in the task execution. For example:
+
+[source,groovy]
+----
+task clean {
+    doLast {
+        // clean up code
+    }
+}
+
+task provision {
+    doLast {
+        // provisioning code
+    }
+    finalizedBy clean
+}
+
+task deploy {
+    dependsOn provision
+    doLast {
+        // deployment code
+    }
+    finalizedBy clean
+}
+----
+
+----
+$ gradle deploy
+:provision
+:deploy
+:clean
+
+BUILD SUCCESSFUL
+----
+
+=== Defining Dependencies and Ordering
+
+In Gradle, there are two ways to define dependencies and ordering for the task:
+inside and outside the task definition. I personally prefer the first way,
+because it allows to consolidate the task definition in one block of code.
+However, the second way is useful, for example, when you set dependencies or
+ordering rules programmatically. The following definitions are equivalent:
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    doLast {
+        // provisioning code
+    }
+}
+
+task deploy {
+    mustRunAfter provision
+    doLast {
+        // deployment code
+    }
+}
+
+task all {
+    dependsOn provision, deploy
+}
+----
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    doLast {
+        // provisioning code
+    }
+}
+
+task deploy {
+    doLast {
+        // deployment code
+    }
+}
+
+task all {
+}
+
+deploy.mustRunAfter provision
+all.dependsOn provision, deploy
+----
+
+Note that the same technique works for any task metadata, for example:
+
+
+[source,groovy]
+----
+deploy.finalizedBy clean
+----
+
+=== Task References
+
+In the previous examples, we used task names to reference them in `dependsOn`,
+`mustRunAfter`, or `finalizedBy`. There are many potential cases when you need
+to reference a task before its definition, for example:
+
+[source,groovy]
+----
+task all {
+    dependsOn provision, deploy // <1>
+}
+
+task provision { }
+
+task deploy { }
+----
+<1> Attempt to reference tasks before they defined
+
+Using the `all` task will fail:
+
+----
+$ gradle all
+FAILURE: Build failed with an exception.
+...
+* What went wrong:
+A problem occurred evaluating root project 'gradle'.
+> Could not find property 'provision' on task ':all'.
+...
+----
+
+If you still want to reference tasks before defining them, then you can use
+strings for `dependsOn`, `mustRunAfter`, or `finalizedBy`: 
+
+[source,groovy]
+----
+task all {
+    dependsOn "provision", "deploy"
+}
+
+task provision { }
+
+task deploy { }
+----
+
+Another option is to add references to the task after defining the referenced
+tasks:
+
+[source,groovy]
+----
+task all { }
+
+task provision { }
+
+task deploy { }
+
+all.dependsOn provision, deploy
+----
+
+=== Task Group and Description
+
+Gradle allows documenting tasks by specifying task group and description. For
+example:
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    group "ops"
+    description "Provisions the execution environment"
+    doLast {
+        // provisioning code
+    }
+}
+
+task deploy {
+    group "ops"
+    description "Deploys the application"
+    mustRunAfter provision
+    doLast {
+        // deployment code
+    }
+}
+----
+
+You can use `gradle tasks` to display task, which are available in your Gradle
+build:
+
+[source,indent=0]
+----
+    $ gradle tasks
+    ...
+    Ops tasks
+    ---------
+    deploy - Deploys the application
+    provision - Provisions the execution environment
+    ...
+----
+
+Running `gradle help --task <task>` gives you detailed information about a
+specific task or multiple tasks matching the given task name:
+
+[source,indent=0]
+----
+    $ gradle help --task deploy
+    ...
+    Detailed task information for deploy
+
+    Path
+         :deploy
+
+    Type
+         Task (org.gradle.api.Task)
+
+    Description
+         Deploys the application
+
+    Group
+         ops
+    ...
+----
