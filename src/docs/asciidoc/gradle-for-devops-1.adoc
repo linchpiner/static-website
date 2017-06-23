@@ -1,10 +1,6 @@
-:plusplus:  ++
 :gradleug:  https://docs.gradle.org/current/userguide
 :github:    https://github.com
 :jenkins:   https://wiki.jenkins-ci.org/display/JENKINS
-:icons:     font
-
-:sectlinks:
 
 = Gradle for DevOps, Part 1
 
@@ -50,10 +46,9 @@ plugins that might be useful for DevOps, such as Gradle
 == Continuous Delivery Tool for non-JVM Projects
 
 You can use Gradle for build and test phases of your project, even if it's not
-Java, Groovy or Scala. For example, you can build C, C{plusplus}, Go projects
-with Gradle. If, for some reason, you cannot use Gradle for that, you can
-always call a native build tool for your language. At least as a temporary
-solution. 
+Java, Groovy or Scala. For example, you can build C, {cpp}, Go projects with
+Gradle. If, for some reason, you cannot use Gradle for that, you can always
+call a native build tool for your language. At least as a temporary solution. 
 
 You can use the same Gradle build to package your project, publish and deploy
 the application. To build your project you should define its dependencies,
