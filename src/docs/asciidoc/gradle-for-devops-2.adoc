@@ -1,0 +1,371 @@
+:gradleug:  https://docs.gradle.org/current/userguide
+:mrhaki:    http://mrhaki.blogspot.com
+
+= Gradle for DevOps, Part 2
+
+In the link:gradle-for-devops-1.html[first part], we discussed several features
+of Gradle, a popular open source build tool, that allow using it in a DevOps
+word. Specifically, Gradle's task-based approach can be used for general
+operations, such as provisioning or deployment. In this part, we will discuss
+how to set and use parameters in your Groovy project.
+
+== Environment Variables
+
+A standard way to configure any script is to use environment variables.  You
+can use the same approach for Gradle build file. You can use the
+`java.lang.System` class for that. The `java.lang` package is imported by
+default in the Gradle build file, so you can use `System` directly. For
+example: 
+
+.build.gradle
+[source,groovy]
+----
+String host = System.getenv("MY_HOST") ?: "127.0.0.1"           // <1>
+String user = System.getenv("MY_USER") ?: System.getenv("USER") // <2>
+
+task checkConnection {
+    description "Checks connection to ${host}"                  // <3>
+    doLast {
+        println "Checking connection to ${user}@${host} ..."    // <4>
+    }
+}
+----
+<1> Use the `MY_HOST` environment variable, or `127.0.0.1` as a default value
+using Groovy
+{mrhaki}/2009/08/groovy-goodness-elvis-operator.html[Elvis] operator for that
+<2> Use the `MY_USER` environment variable, or current user from `USER`
+environment variable, which is set in the most environments
+<3> Use the parameters for a task definition
+<4> Use the parameters for a task execution 
+
+In the example, we define the `checkConnection` task, which uses two
+environment variables with default values. To change the target host for the
+task define `MY_HOST` environment variable:
+
+----
+$ MY_HOST="192.168.1.1" gradle checkConnection
+:checkConnection
+Checking connection to paul@192.168.1.1 ...
+
+BUILD SUCCESSFUL
+----
+
+== System properties
+
+With the `-D` command line option you can pass a system property to the JVM
+which runs Gradle. The `-D` option of the gradle command has the same effect as
+the `-D` option of the `java` command. For example:
+
+.build.gradle
+[source,groovy]
+----
+String host = System.properties.getProperty("myscript.host", "127.0.0.1")   // <1>
+String user = System.properties.getProperty("myscript.user", "root")        // <2>
+
+task checkConnection {
+    description "Checks connection to ${host}"                  // <3>
+    doLast {
+        println "Checking connection to ${user}@${host} ..."    // <4>
+    }
+}
+----
+<1> Use the `myscript.host` Java property, or `127.0.0.1` as a default value
+<2> Use the `myscript.user` Java property, or `root` as a default value
+<3> Use the parameters for a task definition
+<4> Use the parameters for a task execution 
+
+----
+$ gradle checkConnection -Dmyscript.host="192.168.1.1"
+:checkConnection
+Checking connection to root@192.168.1.1 ...
+
+BUILD SUCCESSFUL
+----
+
+== Project Properties
+
+Using Gradle project properties is probably is the most convenient way to
+configure your project. For example, you can use a property directly in your
+task definition:
+
+.build.gradle
+[source,groovy]
+----
+task checkConnection {
+    description "Checks connection to ${host}"
+    doLast {
+        println "Checking connection to ${host} ..."
+    }
+}
+----
+
+Using this `build.gradle` file without setting the `host` property results in
+build error:
+
+----
+$ gradle checkConnection
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file 'build.gradle' line: 2
+
+* What went wrong:
+A problem occurred evaluating root project 'gradle'.
+> Could not get unknown property 'host' for task ':checkConnection' of type org.gradle.api.DefaultTask.
+
+BUILD FAILED
+----
+
+There are several ways to set a project property:
+
+* Using the `-P` command line argument
+* Using environment variables or system properties
+* Directly in the build file
+* In the external file
+
+=== Project Properties in the Command Line
+
+The simplest way to set a project property is using the `-P` command line
+option for `gradle`. For example:
+
+----
+$ gradle checkConnection -Phost=127.0.0.1
+:checkConnection
+Checking connection to 127.0.0.1 ...
+
+BUILD SUCCESSFUL
+----
+
+=== Project Properties in the Build File
+
+You can use `ext` to set project properties directly in the build file:
+
+.build.gradle
+[source,groovy]
+----
+ext.host = "127.0.0.1"
+
+task checkConnection {
+    description "Checks connection to ${host}"
+    doLast {
+        println "Checking connection to ${host} ..."
+    }
+}
+----
+
+Now you can use the build file without setting the `host` property in the
+command line:
+
+----
+$ gradle checkConnection
+:checkConnection
+Checking connection to 127.0.0.1 ...
+
+BUILD SUCCESSFUL
+----
+
+There is an alternative syntax setting a property using `ext` (useful when
+setting several properties):
+
+.build.gradle
+[source,groovy]
+----
+ext {
+    host = "127.0.0.1"
+    user = "root"
+}
+
+task checkConnection {
+    description "Checks connection to ${host}"
+    doLast {
+        println "Checking connection to ${user}@${host} ..."
+    }
+}
+----
+
+=== Project Properties in Environment Variables or System Properties
+
+When Gradle looks for a property, for example `prop`, it takes its value from:
+
+* Environment variable `ORG_GRADLE_PROJECT_prop`, if it is set
+* System property `org.gradle.project.prop`, if it is set
+
+For example:
+
+.build.gradle
+[source,groovy]
+----
+task checkConnection {
+    description "Checks connection to ${host}:${port}"
+    doLast {
+        println "Checking connection to ${user}@${host}:${port} ..."
+    }
+}
+----
+
+Now let's set `user`, `host`, `port` properties using different ways:
+
+----
+$ export ORG_GRADLE_PROJECT_user=root       // <1>
+$ gradle checkConnection  \
+         -Phost=127.0.0.1 \                 // <2>
+         -Dorg.gradle.project.port=8080     // <3>
+:checkConnection
+Checking connection to root@127.0.0.1:8080 ...
+
+BUILD SUCCESSFUL
+----
+<1> Set the `user` property using the environment variable
+<2> Set the `host` property using the `-P` command line option
+<3> Set the `port` property using Java system property (`-D` command line option)
+
+=== Project Properties in gradle.properties
+
+It is a good idea to have an external file with all the available project
+properties and reasonable default values for you build file. 
+
+You can set project properties in the `gradle.properties` file, that can be
+located in the your project directory or in the `~/.gradle/` directory. You can
+also set system properties (using the `systemProp.` prefix) in the same file.
+Later, you can edit the `gradle.properties` file or overwrite a specific
+property using the `-P` (or `-D`) command line option. For example, for the
+`build.gradle` file from the last example, you can create the
+`gradle.properties` file in the same directory:
+
+.gradle.properties
+[source,properties]
+----
+user = root
+host = 127.0.0.1
+port = 8080
+systemProp.protocol = http      // <1>
+----
+<1> Set Java system property `protocol`
+
+When you need to use the `checkConnection` task for a different host, you can
+set the `host` property using the `-P` command line option:
+
+----
+$ gradle checkConnection -Phost=192.168.1.1
+:checkConnection
+Checking connection to root@192.168.1.1:8080 ...
+
+BUILD SUCCESSFUL
+----
+
+=== Project Properties in the External File
+
+There are other ways to set project properties in the external file. For
+example, you can use the
+link:https://github.com/mwiktorczyk/gradle-properties-yaml-plugin[Gradle
+Properties YAML plugin]. The other option is to create a new gradle file,
+define project properties there and include it to the main build file. For
+example:
+
+.conf.gradle
+[source,groovy]
+----
+ext {
+    host = "127.0.0.1"
+    user = "root"
+    port = 8080
+}
+----
+
+.build.gradle
+[source,groovy]
+----
+apply from: "conf.gradle"
+
+task checkConnection {
+    description "Checks connection to ${host}:${port}"
+    doLast {
+        println "Checking connection to ${user}@${host}:${port} ..."
+    }
+}
+----
+
+This method is actually the same as defining project properties directly in the
+build file, but allows you to keep all the properties and their default values
+in one place. Another advantage is that you can use the existing properties to
+construct new properties. For example:
+
+.conf.gradle
+[source,groovy]
+----
+ext {
+    host = "127.0.0.1"
+    user = "root"
+    port = 8080
+    url = "${user}@${host}:${port}"
+}
+----
+
+=== Resolution Rules
+
+Gradle looks for a property in the following order:
+
+* The `ext` block inside the build file (or in any file included using `apply from`)
+* Command line (property defined using the `-P`, `-D` command line options, or environment variables)
+* The file `~/.gradle/gradle.properties` (those properties are available to all projects)
+* The file `gradle.properties` in the same directory as the build file
+
+Therefore, a property defined, for example, in the `gradle.properties` file
+will be overwritten with a property defined using the `-P` command line option,
+or with a property defined in the build file using the `ext` block.
+
+=== Default Values
+
+As we already mentioned, if you define a property in the `gradle.properties`
+file, then you can overwrite its value using the `-P` command line option. From
+this perspective, you can use `gradle.properties` to list all available
+properties and to set their default values.
+
+Another option is to set a default value directly in the build file. You can
+use `project.hasProperty()` for this. For example:
+
+.build.gradle
+[source,groovy]
+----
+ext {
+    host = project.hasProperty("host") ? host : "127.0.0.1" // <1>
+    user = project.hasProperty("user") ? user : "root"      // <2>
+    port = project.hasProperty("port") ? port : 8080        // <3>
+}
+
+task checkConnection {
+    description "Checks connection to ${host}:${port}"
+    doLast {
+        println "Checking connection to ${user}@${host}:${port} ..."
+    }
+}
+----
+<1> Use the specified `host` property, or `127.0.0.1` as the default value
+<2> Use the specified `user` property, or `root` as the default value
+<3> Use the specified `port` property, or `8080` as the default value
+
+Now you can use the build file with the default values:
+
+----
+$ gradle checkConnection
+:checkConnection
+Checking connection to root@127.0.0.1:8080 ...
+
+BUILD SUCCESSFUL
+----
+
+Or explicitly set a specific property:
+
+----
+$ gradle checkConnection -Phost=192.168.1.1
+:checkConnection
+Checking connection to root@192.168.1.1:8080 ...
+
+BUILD SUCCESSFUL
+----
+
+== Links
+
+* link:gradle-for-devops-1.html[Gradle for DevOps, Part 1] 
+* link:http://andresalmiray.com/newsletter/issue001/[Gradle project properties]
