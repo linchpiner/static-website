@@ -30,7 +30,8 @@ asciidoctor {
                'icons':              'font',
                'nofooter':           'true',
                'imagesdir':          'images',
-               'sectlinks':          'true'
+               'sectlinks':          'true',
+               'docinfo1':           ''
 }
 
 task copyOutput(type: Copy) {
