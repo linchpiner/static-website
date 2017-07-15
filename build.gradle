@@ -26,6 +26,8 @@ asciidoctor {
     requires = ['asciidoctor-diagram']
     gemPath = jrubyPrepare.outputDir
     backends 'html5'
+    sourceDir = file("docs")
+    outputDir = file("build/docs")    
     attributes 'source-highlighter': 'prettify',
                'icons':              'font',
                'nofooter':           'true',
@@ -35,6 +37,6 @@ asciidoctor {
 }
 
 task copyOutput(type: Copy) {
-    from "$project.buildDir/asciidoc/html5"
+    from "build/docs/html5"
     into "../linchpiner.github.io/"
 }
