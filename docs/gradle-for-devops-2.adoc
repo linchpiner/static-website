@@ -365,7 +365,4 @@ Checking connection to root@192.168.1.1:8080 ...
 BUILD SUCCESSFUL
 ----
 
-== Links
-
-* link:gradle-for-devops-1.html[Gradle for DevOps, Part 1] 
-* link:http://andresalmiray.com/newsletter/issue001/[Gradle project properties]
+include::gradle-for-devops-links.adoc[]

@@ -583,6 +583,4 @@ specific task or multiple tasks matching the given task name:
     ...
 ----
 
-== Links
-
-* link:gradle-for-devops-2.html[Gradle for DevOps, Part 2] 
+include::gradle-for-devops-links.adoc[]
