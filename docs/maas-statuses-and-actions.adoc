@@ -7,7 +7,7 @@ actions for servers managed by MaaS.
 
 == Basic Statuses and Actions
 
-image::maas-actions-1.png[]
+image::maas-actions-1.svg[]
 
 *Commissioning:* adds node to a pool of available nodes.
 
@@ -16,7 +16,7 @@ it is required prior to deploying. In UI, it's done automatically for the user.
 
 == Rescue Mode
 
-image::maas-actions-2.png[]
+image::maas-actions-2.svg[]
 
 *Rescue Mode:* boots a node ephemerally (Ubuntu running in memory on the
 underlying machine). This allows a user SSH to the machine for maintenance
@@ -25,7 +25,7 @@ node that failed to deploy.
  
 == Abort, Delete, Mark Broken
 
-image::maas-actions-3.png[]
+image::maas-actions-3.svg[]
 
 *Abort:* aborts any action that can be retried. This currently applies to
 Commission and Deploy.
