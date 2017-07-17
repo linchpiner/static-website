@@ -1,0 +1,49 @@
+= MaaS Statues and Actions
+
+Metal as a Service (link:https://git.launchpad.net/maas/tree/README[MaaS]) is a
+bare metal provisioning tool developed by Canonical. MaaS is an open source
+(AGPL v3 licence). The following diagrams visualize statuses and available
+actions for servers managed by MaaS.
+
+== Basic Statuses and Actions
+
+image::maas-actions-1.png[]
+
+*Commissioning:* adds node to a pool of available nodes.
+
+*Acquire:* reserves a node for the user from the pool of available nodes. In CLI,
+it is required prior to deploying. In UI, it's done automatically for the user.
+
+== Rescue Mode
+
+image::maas-actions-2.png[]
+
+*Rescue Mode:* boots a node ephemerally (Ubuntu running in memory on the
+underlying machine). This allows a user SSH to the machine for maintenance
+purposes. This can be done for a 'Deployed' or 'Broken' node as well as for a
+node that failed to deploy.
+ 
+== Abort, Delete, Mark Broken
+
+image::maas-actions-3.png[]
+
+*Abort:* aborts any action that can be retried. This currently applies to
+Commission and Deploy.
+
+*Delete:* removes a node from MaaS. The underlying machine remains unaffected.
+Upon rebooting it will be enlisted once more (status 'New').
+
+*Mark broken:* This can be chosen if any action has failed (such as
+'Commission' and 'Deploy'). Marking it broken guarantees that the node will not
+get used in any way. This would normally be followed by some level of
+investigation so as to determine the source of the problem. This action can
+also be used to indicate that hardware maintenance is being, or will be,
+performed that would affect MaaS, such as modifications at the networking or
+disk subsystem level.  Finally, some aspects of a node can only be edited when
+a node's status is 'Broken'. For example, a node's network interface can only
+be edited via MaaS if the node has a status of either 'Ready' or 'Broken'.
+
+Read more about states and actions in the
+link:https://docs.ubuntu.com/maas/2.1/en/intro-concepts[Concepts and Terms]
+section of the official MaaS documentation.
+
