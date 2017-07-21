@@ -1,0 +1,314 @@
+:gradle:    https://docs.gradle.org
+:gradleug:  {gradle}/current/userguide
+
+= Gradle for DevOps, Part 3
+
+In the link:gradle-for-devops-1.html[first] and
+link:gradle-for-devops-2.html[second] parts we learned how to use
+https://gradle.org/[Gradle] as a DevOps "glue" for your existing tools and
+various scripts. Specifically, you can use Gradle to structure your DevOps
+logic into tasks and their dependencies. Also we learned how to set parameters
+for these these tasks. In this part, we will discuss how to do actual stuff:
+execute commands locally and remotely, call external scripts and tools.
+
+Although Grade is initially designed to work with local files - as a build tool
+it needs to identify changed inputs and update outputs respectively - it also
+can be used to control remote systems.
+
+== Local Operations
+
+The simplest way to execute a local script or executable binary is using the
+`execute()` method that Groovy adds to the `String` and `List` classes. For
+example:
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    doLast {
+        "./provision.sh ${server}".execute()    // <1>
+    }
+}
+----
+<1> In Groovy, you can call `execute()` for any String. Alternatively, you can
+use `execute` for a List: `["./provision.sh", server].execute()`
+
+In the example above, we execute the local script `provision.sh` that is
+located in the same directory with the Gradle build file. The `execute()`
+method returns an instance of the
+link:http://docs.groovy-lang.org/docs/latest/html/groovy-jdk/java/lang/Process.html[`Process`]
+class, so you can use its methods such as `waitFor()` (waits for the process to
+terminate), `exitValue()` (returns the exit value for the process) or
+`getText()` (returns the standard output from the process as a string):
+
+.build.gradle
+[source,groovy]
+----
+task provision {
+    doLast {
+        def process = "./provision.sh ${server}".execute()
+        process.waitFor()
+        println process.text
+        if (process.exitValue()) {
+            throw new GradleException("./provision.sh returned ${process.exitValue()}")
+        }
+    }
+}
+----
+
+Alternatively, you can use the built-in
+link:{gradle}/4.0/dsl/org.gradle.api.tasks.Exec.html[`Exec`] task in Gradle:
+
+.build.gradle
+[source,groovy]
+----
+task provision(type: Exec) {
+    commandLine "./provision.sh"
+}
+----
+
+Gradle has other built-in tasks, such as 
+link:{gradle}/4.0/dsl/org.gradle.api.tasks.Copy.html[`Copy`], 
+link:{gradle}/4.0/dsl/org.gradle.api.tasks.Delete.html[`Delete`], 
+link:{gradle}/4.0/dsl/org.gradle.api.tasks.Sync.html[`Sync`], 
+link:{gradle}/4.0/dsl/org.gradle.api.tasks.bundling.Zip.html[`Zip`], 
+and so on
+
+== Remote Operations
+
+For remote operations, Gradle is perfect for systems that have remote APIs with corresponding Java libraries or bindings.
+For example, you can use link:https://github.com/classmethod/gradle-aws-plugin[Gradle AWS Plugin] to manage AWS resources.
+link:https://gradle-ssh-plugin.github.io/[Gradle SSH Plugin] is the perfect tool for general purpose operations on remote servers.
+It support parallel operations, local and remote
+link:https://gradle-ssh-plugin.github.io/docs/#_enable_the_port_forwarding[port forwarding],
+and
+link:https://gradle-ssh-plugin.github.io/docs/#_gateway_access[ssh gateways] 
+to connect to a remote server through one or more gateway servers.
+
+Let's implement a simple Gradle task to show server uptime:
+
+.build.gradle
+[source,groovy]
+----
+plugins {
+    id 'org.hidetake.ssh' version '2.9.0'   // <1>
+}
+
+ssh.settings {
+    knownHosts = allowAnyHosts              // <2>
+}
+
+remotes {
+    node {                                  // <3>
+        host = '192.168.1.101'
+        user = 'ubuntu'
+        password = 'ubuntu'
+    }
+}
+
+task nodeUptime {
+    doLast {
+        ssh.run {
+            session(remotes.node) {
+                execute "uptime"            // <4>
+            }
+        }
+    }
+}
+----
+<1> Add the Gradle SSH plugin to your script (Gradle will download all required dependencies)
+<2> Accept keys for all host
+<3> Set SSH connection parameters
+<4> Execute `uptime` on the remote server
+
+You can use the task `nodeUptime` to show server uptime:
+
+----
+$ gradle nodeUptime
+:nodeUptime
+Host key checking is off. It may be vulnerable to man-in-the-middle attacks.
+node#1| 20:37:53 up 119 days, 10:21,  0 users,  load average: 0.10, 0.23, 0.47
+
+BUILD SUCCESSFUL in 1s
+1 actionable task: 1 executed
+----
+
+If you have multiple servers, then you may want to implement similar task for each server.
+Let's start from defining connection parameters for each node:
+
+.build.gradle
+[source,groovy]
+----
+plugins {
+    id 'org.hidetake.ssh' version '2.9.0'
+}
+
+ssh.settings {
+    knownHosts = allowAnyHosts
+}
+
+remotes {
+    node1 {
+        host = '192.168.1.1'
+        user = 'ubuntu'
+        password = 'ubuntu'
+    }
+    node2 {
+        host = '192.168.1.2'
+        user = 'ubuntu'
+        password = 'ubuntu'
+    }
+
+    ...
+
+    node10 {
+        host = '192.168.1.10'
+        user = 'ubuntu'
+        password = 'ubuntu'
+    }
+}
+----
+
+Instead of defining similar task manually for each node (we have 100 nodes!), let's write a simple Groovy code that generates 100 tasks.
+The previous example continues:
+
+[source,groovy]
+----
+remotes.each { remote ->                                        // <1>
+    task "${remote.name}Uptime" {                               // <2>
+        description "Shows uptime for server ${remote.name}"    // <3>
+        doLast {
+            ssh.run {
+                session(remote) {
+                    execute "uptime"                            // <4>
+                }
+            }
+        }
+    }
+}
+----
+<1> Iterate through defined servers
+<2> Define a new task, using a server name
+<3> Set a task description, using a server name
+<4> Execute `uptime` on a remote server
+
+Let's check that our script contains the tasks:
+
+----
+$ gradle tasks --all
+:tasks
+
+------------------------------------------------------------
+All tasks runnable from root project
+------------------------------------------------------------
+
+...
+
+Other tasks
+-----------
+node1Uptime - Shows uptime for server node1
+...
+node10Uptime - Shows uptime for server node10
+
+BUILD SUCCESSFUL in 0s
+1 actionable task: 1 executed
+----
+
+For this specific example, where all the hosts are similar, you can also use Groovy code to generate hosts definitions.
+The following code generates the same definitions of the nodes from the previous example:
+
+[source,groovy]
+----
+remotes {
+    (1..10).each { n ->
+        "node${n}" {
+            host = "192.168.1.${n}"
+            user = "ubuntu"
+            password = "ubuntu"
+        }
+    }
+}
+----
+
+You can use these tasks to show uptime for specific servers:
+
+----
+$ gradle node1Uptime node2Uptime
+...
+:node1Uptime
+node1#1| 20:37:53 up 119 days, 10:21,  0 users,  load average: 0.10, 0.23, 0.47
+:node2Uptime
+node2#1| 20:37:53 up 119 days, 10:21,  0 users,  load average: 0.11, 0.25, 0.51
+..
+----
+
+If you need to check uptime for all of the servers, then you can define a task that depends on each individual task:
+
+[source,groovy]
+----
+task nodesUptime {
+    description "Shows uptime for all servers"
+    remotes.each { remote ->
+        dependsOn "${remote.name}Uptime"
+    }
+}
+----
+
+----
+$ gradle nodesUptime
+...
+:node1Uptime
+node1#1| 20:37:53 up 119 days, 10:21,  0 users,  load average: 0.10, 0.23, 0.47
+:node2Uptime
+node2#1| 20:37:53 up 119 days, 10:21,  0 users,  load average: 0.11, 0.25, 0.51
+...
+BUILD SUCCESSFUL in 10s
+10 actionable tasks: 10 executed
+----
+
+The task works, but not very efficient: it connects to one host per time.
+You can use another implementation that uses parallel SSH connections:
+
+[source,groovy]
+----
+task nodesUptime {
+    description "Shows uptime for all servers"
+    doLast {
+        def results = ssh.run {                                         // <1>
+            remotes.each { remote ->                                    // <2>
+                session(remote) {
+                    def output = execute("uptime", logging: "none")     // <3>
+                    return [name: remote.name, output: output]          // <4>
+                }
+            }
+        }
+        results.each {                                                  // <5>
+            println "${it.name}: ${it.output}"
+        }
+    }
+}
+----
+<1> Run several SSH sessions in parallel and wait for their termination
+<2> Define SSH session per server
+<3> Execute `uptime` on a remote server and store its output
+<4> Return a map with server name and uptime
+<5> Iterate through the map and print results
+
+Now the task works 10 times faster:
+
+----
+:nodesUptime
+node1:  21:32:21 up 119 days, 11:15,  0 users,  load average: 0.15, 0.13, 0.15
+...
+node10:  21:32:21 up 119 days, 11:15,  0 users,  load average: 0.15, 0.13, 0.15
+
+BUILD SUCCESSFUL in 1s
+1 actionable task: 1 executed
+
+----
+
+Of course, the same result can be easily achieved using, for example, link:https://www.ansible.com/[Ansible] or link:https://saltstack.com/[Salt].
+
+include::_gradle-for-devops-note.adoc[]
+
+include::_gradle-for-devops-links.adoc[]

@@ -25,6 +25,7 @@ asciidoctor {
     dependsOn jrubyPrepare
     requires = ['asciidoctor-diagram']
     gemPath = jrubyPrepare.outputDir
+//    backends 'html5', 'pdf'
     backends 'html5'
     sourceDir = file("docs")
     sources {

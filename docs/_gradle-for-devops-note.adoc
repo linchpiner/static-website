@@ -1,0 +1,4 @@
+.Note
+NOTE: The examples in the article have been tested with Gradle 4.0.1.
+Starting from Gradle 3.0 you can use link:https://blog.gradle.org/kotlin-meets-gradle[Kotlin] to write build scripts.
+Gradle's Groovy support is not deprecated, and will continue to be link:https://github.com/gradle/kotlin-dsl/wiki/Frequently-Asked-Questions[supported].

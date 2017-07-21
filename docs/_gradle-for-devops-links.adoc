@@ -2,4 +2,4 @@
 
 * link:gradle-for-devops-1.html[Gradle for DevOps, Part 1 - Tasks and dependencies] 
 * link:gradle-for-devops-2.html[Gradle for DevOps, Part 2 - Project parameters] 
-//* link:gradle-for-devops-3.html[Gradle for DevOps, Part 2 - Local and remote operations] 
+* link:gradle-for-devops-3.html[Gradle for DevOps, Part 2 - Local and remote operations] 

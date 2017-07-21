@@ -365,4 +365,6 @@ Checking connection to root@192.168.1.1:8080 ...
 BUILD SUCCESSFUL
 ----
 
+include::_gradle-for-devops-note.adoc[]
+
 include::_gradle-for-devops-links.adoc[]
