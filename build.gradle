@@ -27,6 +27,10 @@ asciidoctor {
     gemPath = jrubyPrepare.outputDir
     backends 'html5'
     sourceDir = file("docs")
+    sources {
+        include '**/*.adoc'
+        exclude '**/_*.adoc'
+    }
     outputDir = file("build/docs")    
     attributes 'source-highlighter': 'prettify',
                'icons':              'font',
