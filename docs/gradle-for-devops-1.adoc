@@ -549,7 +549,7 @@ task deploy {
 You can use `gradle tasks` to display task, which are available in your Gradle
 build:
 
-[source,indent=0]
+[indent=0]
 ----
     $ gradle tasks
     ...
@@ -563,7 +563,7 @@ build:
 Running `gradle help --task <task>` gives you detailed information about a
 specific task or multiple tasks matching the given task name:
 
-[source,indent=0]
+[indent=0]
 ----
     $ gradle help --task deploy
     ...

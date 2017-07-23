@@ -1,0 +1,411 @@
+:gradleug:  https://docs.gradle.org/current/userguide
+
+= Gradle for DevOps, Part 4
+
+In this part, we will look closer to the Gradle build lifecycle, how Gradle configures tasks, and how to create Gradle tasks in runtime.
+Creating tasks in runtime gives you great flexibility with operations for different environments.
+Also we will discuss how to use Gradle to build a unified command line interface (CLI) for various operations.
+
+As already discussed in the link:gradle-for-devops-1.html[first] part, in Gradle define tasks and dependencies between tasks.
+Gradle guarantees that these tasks are executed in the order of their dependencies, and that each task is executed only once.
+Gradle builds the complete dependency graph before any task is executed.
+In the link:gradle-for-devops-3.html[third] part, we used Groovy to create a dynamic task for each remote server from your configuration.
+Also, using Groovy we created a task that run SSH commands on all servers in parallel.
+Generally speaking, all tasks in a Gradle file are dynamic, because they are being created in runtime.
+For better understanding of that fact let's begin from the Gradle build lifecycle.
+
+== The Build Lifecycle
+
+A Gradle build has three distinct link:{gradleug}/build_lifecycle.html[phases]:
+
+* *Initialization:* Gradle determines which projects are going to take part in the build (this is relevant for multi-project builds).
+* *Configuration:* Gradle creates project objects, including tasks.
+* *Execution:* Gradle determines the subset of the tasks, created and configured during the configuration phase, to be executed.
+The subset is determined by the task name arguments passed to the `gradle` command and the current directory.
+Gradle then executes each of the selected tasks.
+
+For example, let's take a look to the following Gradle build file:
+
+.build.gradle
+[source,groovy]
+----
+println 'This is executed during the configuration phase'           // <1>
+
+task testBoth {                                                     // <2>
+    println 'This is executed during the configuration phase'       // <3>
+    doFirst {                                                       // <4>
+      println 'This is executed first during the execution phase'   
+    }
+    doLast {
+      println 'This is executed last during the execution phase'
+    }
+    println 'This is executed during the configuration phase'
+}
+----
+<1> In the configuration phase, `build.gradle` is executed as Groovy script.
+<2> In the configuration phase, we actually define (create) tasks.
+<3> Task definition is a Groovy link:http://groovy-lang.org/closures.html[closure] that is executed in the configuration phase.
+<4> For the `doFirst` and `doLast` sections, we define Groovy closures that will be executed in the execution phase.
+
+== Parameterized Tasks
+
+As we figured out, every Gradle task is dynamic, because it's being created in the configuration phase.
+Therefore, we can use Groovy variables and Gradle project properties for the task definition:
+
+.build.gradle
+[source,groovy]
+----
+def date = new Date().format("yyyyMMdd")
+
+task "create-${server}-backup" {
+    description "Creates backup of '${server}'"
+    doLast {
+        println "Creating backup `${server}-${date}`"
+        // actually do the backup
+    }
+}
+----
+
+Let's use our Gradle file for the server `mars`:
+
+----
+$ gradle tasks --all -Pserver=mars
+:tasks
+
+...
+
+create-mars-backup - Creates backup of 'mars'
+----
+
+As you see, our Gradle file provides the `create-mars-backup` task.
+Let's use this task:
+
+----
+$ gradle create-mars-backup -Pserver=mars
+:create-mars-backup
+Creating backup `mars-20170722`
+----
+
+In this example, we use the project property `server` that we set in the command line.
+Alternatively, we can define available servers in the build file (or in external file) and generate `create-...-backup` for each server:
+
+.remotes.gradle
+[source,groovy]
+----
+remotes {
+    mars {
+        host = "..."
+        user = "..."
+        password = "..."
+    }
+    jupiter {
+        host = "..."
+        user = "..."
+        password = "..."
+    }
+}
+----
+
+.build.gradle
+[source,groovy]
+----
+plugins {
+  id 'org.hidetake.ssh' version '2.9.0'
+}
+
+apply from: 'remotes.gradle'
+
+remotes.each { remote ->
+    task "create-${remote.name}-backup" {
+        description "Creates backup of '${remote.name}'"
+        doLast {
+            // do the backup
+        }
+    }
+}
+----
+
+In this example, we define our servers in a separate file (the Gradle SSH plugin allows us to use the `remotes` section for that).
+Then we include this file into the main build file.
+Let's check that we have a dedicated task for each server:
+
+----
+$ gradle tasks --all
+:tasks
+
+...
+
+create-jupiter-backup - Creates backup of 'jupiter'
+create-mars-backup - Creates backup of 'mars'
+----
+
+== Task Names
+
+It is the usual practice to use link:https://en.wikipedia.org/wiki/Camel_case[camelCase] (or lower camel case) convention for a task name in Gradle, for example: `buildEnvironment`.
+However, you may want to use any convention you want, and, in some cases, there is a good reason (that we will discuss later) for that.
+In the previous example, we use hyphen as a delimiter between words: `create-mars-backup`. You can even use spaces in the task name:
+
+.build.gradle
+[source,groovy]
+----
+task "create ${server} backup" {
+    description "Creates backup of `${server}`"
+}
+----
+
+To use such task you need to enclose the task name in quotes (or double quotes):
+
+----
+$ gradle 'create mars backup' -Pserver=mars
+----
+
+Another Gradle's nice feature is link:{gradleug}/tutorial_gradle_command_line.html#sec:task_name_abbreviation[task name abbreviation]:
+when you specify tasks on the command-line, you don't have to provide the full name of the task.
+You only need to provide enough of the task name to uniquely identify the task.
+Gradle will let you know when the provided part is ambiguous.
+For the example, where we defined two tasks for two servers:
+
+----
+$ gradle create
+...
+* What went wrong:
+Task 'create' is ambiguous in root project 'gradle'. Candidates are: 'create jupiter backup', 'create mars backup'.
+...
+----
+
+== Task Rules
+
+Sometimes you want to have a task whose behavior depends on a large or infinite number value range of parameters.
+For our example with backup tasks for two server, image that we have 100 servers and 10 operations.
+In thit case, we will end with 1000 generated tasks (Gradle will handle that) and our the output of `gradle tasks` will be insanely huge.
+Another example is if you want, let's say, implement a task to ping a server using its name.
+A very nice and expressive way to provide such tasks are link:{gradleug}/more_about_tasks.html#sec:task_rules[task rules]:
+
+.build.gradle
+[source,groovy]
+----
+tasks.addRule("Pattern: ping-<server>") { String taskName ->
+    if (taskName.startsWith("ping-")) {
+        task(taskName) {
+            doLast {
+                println "Pinging: " + (taskName - 'ping-')
+            }
+        }
+    }
+}
+----
+
+Now you can use this task rule with (almost) any server name:
+
+----
+$ gradle ping-mars
+:ping-mars
+Pinging: mars
+----
+
+The output of `gradle tasks`:
+
+[indent=0]
+----
+    $ gradle tasks
+    ...
+    Rules
+    -----
+    Pattern: ping-<server>
+    ...
+----
+
+Note that this is the good case for using a hyphen as a delimiter instead of camelCase convention.
+Otherwise we have to use `pingmars` or even `pingMars` (the first doesn't look good, the second is not so reasonable if a server name is `mars`).
+
+Because a task rule creates a regular task (or several regular tasks), you can use these tasks as usual, for example, to define dependencies:
+
+[source,groovy]
+----
+task pingServers {
+    dependsOn 'ping-mars', 'ping-jupiter'
+}
+----
+
+=== Multiple Parameters in a Task Rule
+
+It is possible to use multiple parameters in a task rule, for example:
+
+.build.gradle
+[source,groovy]
+----
+tasks.addRule("Pattern: backup-<server>-<yyyyMMdd>") { String taskName ->               // <1>
+    def matcher = taskName =~ /backup-([^-]+)-(\d{8})/                                  // <2>
+    if (matcher.matches()) {
+        def (server, date) = [ matcher[0][1], Date.parse("yyyyMMdd", matcher[0][2]) ]   // <3>
+        task(taskName) {                                                                // <4>
+            doLast {
+                println "Creating backup for server ${server}, " +
+                        "date: ${date.format('MM/dd/yyyy')}"
+            }
+        }
+    }
+}
+----
+<1> A string argument for the `addRule` method is just a text displayed for `gradle tasks`.
+<2> We use Groovy regex matcher to check if the task name contains two required parameters. We also check that the second parameter consists of 8 digits (`\d{8}`).
+<3> We use Groovy's multiple assignment for the `server` and `date` variables. We also parse date using the specified format.
+<4> We define a new task with the specified name and use `server` and `date` in the `doLast` closure for the execution phase.
+
+Usage example:
+
+----
+$ gradle backup-mars-20170101
+:backup-mars-20170101
+Creating backup for server mars, date: 01/01/2017
+----
+
+=== Tricks with Task Rules
+
+Let's modify our example with the `ping-<server>` task rule. 
+We will use task rules with `=` and `/` instead of hyphen:
+
+.build.gradle
+[source,groovy]
+----
+tasks.addRule("Pattern: ping=<server>") { String taskName ->
+    if (taskName.startsWith("ping=")) {
+        task(taskName) {
+            doLast {
+                println "Pinging: " + (taskName - 'ping=')
+            }
+        }
+    }
+}
+
+tasks.addRule("Pattern: ping/<server>") { String taskName ->
+    if (taskName.startsWith("ping/")) {
+        task(taskName) {
+            doLast {
+                println "Pinging: " + (taskName - 'ping/')
+            }
+        }
+    }
+}
+----
+
+Now we can use `gradle` with tasks like `ping=server` or `ping/server`.
+There are several obvious limitations on the task name.
+For example, it cannot begin with `-` (reserved for command line options) or contain `:` (used as a project separator). 
+Using `/` and `=` in a task name is not documented, but works with the current version of Gradle.
+
+=== CLI Example
+
+We will use methods from the previous sections to implement a simple CLI similar to link:https://kubernetes.io/docs/user-guide/kubectl-overview/[`kubectl`].
+Our target is not the exact clone of `kubectl`, but CLI with the same principles:
+
+* There are manageable resources, such as pods.
+* There are operations for each resource, for example `get` or `describe`
+
+Our simple CLI will support the following syntax:
+
+* `gradle get pod/<name>` to display a pod with the specified name
+* `gradle describe pod/name` to display details for a pod with the specified name
+* `gradle ... namespace=<name>` to specify a namespace (`default` by default)
+
+Our implementation has several side effects, which are not necessarily bad:
+
+* You can specify several pods at the same time: `gradle get pod/pod1 pod/pod2`
+* You can specify several operations at the same time: `gradle get describe pod/pod1`
+
+In the beginning, let's define several task rules:
+
+.build.gradle
+[source,groovy]
+----
+ext.pods = []
+ext.namespaces = []
+ext.operations = []
+
+tasks.addRule("Pattern: pod/<ID>") { String taskName ->         // <1>
+    if (taskName.startsWith("pod/")) {
+        task(taskName) {
+            doLast {
+                pods << taskName - "pod/"
+            }
+            finalizedBy 'doOperation'
+        }
+    }
+}
+
+tasks.addRule("Pattern: namespace=<ID>") { String taskName ->   // <2>
+    if (taskName.startsWith("namespace=")) {
+        task(taskName) {
+            doLast {
+                namespaces << taskName - "namespace="
+            }
+            finalizedBy 'doOperation'
+        }
+    }
+}
+
+
+tasks.addRule("Pattern: get | describe") { String taskName ->   // <3>
+    if (taskName =~ /get|describe/) {
+        task(taskName) {
+            doLast {
+                operations << taskName
+            }
+            finalizedBy 'doOperation'
+        }
+    }
+}
+----
+<1> A task rule for tasks like `pod/<name>`. We store the specified pods' names in the `pods` list.
+<2> A task rule for tasks like `namespace=name`. We store the specified namespaces in the `namespaces` list.
+<3> A task rule for task `get` or `describe`. We store the specified operations in the `operations` list.
+
+Note that these task have the finalizer task `doOperation`. Let's define this task:
+
+[source,groovy]
+----
+task doOperation {
+    doLast {
+        if (pods.size() < 1) {                                                          // <1>
+            throw new GradleException("Pod is not specified: pod/<id>")
+        }
+        if (operations.size() < 1) {                                                    // <2>
+            throw new GradleException("Operation is not specified: get | describe")
+        }
+        if (namespaces.size() < 1) {                                                    // <3>
+            namespaces << "default"
+        }
+        namespaces.each { ns ->                                                         // <4>
+            operations.each { o ->
+                "do${o.capitalize()}"(ns)                                                 
+            }
+        }
+    }
+}
+
+def doGet(ns) {
+    println "Get ${pods} in ${ns}"
+}
+
+def doDescribe(ns) {
+    println "Describe: ${pods} in ${ns}"
+}
+----
+<1> Check that at least one pod is specified (we can also check if one and only one, if necessary).
+<2> Check that at least one operation is specified (we can also check if one and only one, if necessary).
+<3> If namespace is not specified, use the default one.
+<4> Iterate over the specified namespaces and execute all operations for each namespace. Note that we dynamically call `doGet` or `doDescribe` methods.
+
+Usage example:
+
+----
+$ gradle get pod/pod1
+:get
+:pod/pod1
+:doOperation
+Get [pod1] in default
+----
+
+include::_gradle-for-devops-note.adoc[]
+
+include::_gradle-for-devops-links.adoc[]

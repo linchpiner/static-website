@@ -197,15 +197,7 @@ Let's check that our script contains the tasks:
 ----
 $ gradle tasks --all
 :tasks
-
-------------------------------------------------------------
-All tasks runnable from root project
-------------------------------------------------------------
-
 ...
-
-Other tasks
------------
 node1Uptime - Shows uptime for server node1
 ...
 node10Uptime - Shows uptime for server node10
@@ -307,7 +299,9 @@ BUILD SUCCESSFUL in 1s
 
 ----
 
-Of course, the same result can be easily achieved using, for example, link:https://www.ansible.com/[Ansible] or link:https://saltstack.com/[Salt].
+There is nothing special here, you can do the same using, for example, link:https://www.ansible.com/[Ansible] or link:https://saltstack.com/[Salt].
+However, if your team is already using Gradle as a build tool, then it can be very convenient to use Gradle for basic operations on remote servers as well.
+Also, you can use Gradle as a high-level orchestration tool: you can call your favorite configuration management tool from Gradle script and you can use that Gradle script from Jenkins job.
 
 include::_gradle-for-devops-note.adoc[]
 
