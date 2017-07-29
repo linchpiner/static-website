@@ -367,4 +367,6 @@ BUILD SUCCESSFUL
 
 include::_gradle-for-devops-note.adoc[]
 
+== Links
+
 include::_gradle-for-devops-links.adoc[]

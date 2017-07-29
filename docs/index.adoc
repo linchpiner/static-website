@@ -1,0 +1,9 @@
+= Paul Linchpiner
+
+== Gradle
+
+include::_gradle-for-devops-links.adoc[]
+
+== Miscellaneous
+
+* link:maas-statuses-and-actions.html[Metal as a Service (MaaS) Statues and Actions]

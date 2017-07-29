@@ -305,4 +305,6 @@ Also, you can use Gradle as a high-level orchestration tool: you can call your f
 
 include::_gradle-for-devops-note.adoc[]
 
+== Links
+
 include::_gradle-for-devops-links.adoc[]

@@ -585,4 +585,6 @@ specific task or multiple tasks matching the given task name:
 
 include::_gradle-for-devops-note.adoc[]
 
+== Links
+
 include::_gradle-for-devops-links.adoc[]

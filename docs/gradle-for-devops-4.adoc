@@ -408,4 +408,6 @@ Get [pod1] in default
 
 include::_gradle-for-devops-note.adoc[]
 
+== Links
+
 include::_gradle-for-devops-links.adoc[]
