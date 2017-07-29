@@ -14,18 +14,18 @@ apply plugin: 'org.asciidoctor.convert'
 apply plugin: 'com.github.jruby-gradle.base'
 
 dependencies {
+    gems 'rubygems:asciidoctor:1.5.5'
+    gems 'rubygems:ttfunk:1.4.0'
+    gems 'rubygems:prawn:2.1.0'
+    gems 'rubygems:slim:3.0.8'
+    gems 'rubygems:thread_safe:0.3.5'
     gems 'rubygems:asciidoctor-diagram:1.5.4'
-}
-
-asciidoctorj {
-    version = '1.5.5'
 }
 
 asciidoctor {
     dependsOn jrubyPrepare
     requires = ['asciidoctor-diagram']
     gemPath = jrubyPrepare.outputDir
-//    backends 'html5', 'pdf'
     backends 'html5'
     sourceDir = file("docs")
     sources {
