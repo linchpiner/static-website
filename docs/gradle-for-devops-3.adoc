@@ -169,7 +169,7 @@ remotes {
 }
 ----
 
-Instead of defining similar task manually for each node (we have 100 nodes!), let's write a simple Groovy code that generates 100 tasks.
+Instead of defining similar task manually for each node (imagine that we have 100 nodes instead!), let's write a simple Groovy code that generates 10 tasks.
 The previous example continues:
 
 [source,groovy]

@@ -384,11 +384,11 @@ task doOperation {
 }
 
 def doGet(ns) {
-    println "Get ${pods} in ${ns}"
+    println "Get ${pods} in ${ns} namespace"
 }
 
 def doDescribe(ns) {
-    println "Describe: ${pods} in ${ns}"
+    println "Describe: ${pods} in ${ns} namespace"
 }
 ----
 <1> Check that at least one pod is specified (we can also check if one and only one, if necessary).
@@ -396,14 +396,22 @@ def doDescribe(ns) {
 <3> If namespace is not specified, use the default one.
 <4> Iterate over the specified namespaces and execute all operations for each namespace. Note that we dynamically call `doGet` or `doDescribe` methods.
 
-Usage example:
+Usage examples:
 
 ----
 $ gradle get pod/pod1
 :get
 :pod/pod1
 :doOperation
-Get [pod1] in default
+Get [pod1] in default namespace
+----
+
+----
+$ gradle get pod/pod1 namespace=prod
+:get
+:pod/pod1
+:doOperation
+Get [pod1] in prod namespace
 ----
 
 include::_gradle-for-devops-note.adoc[]

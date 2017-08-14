@@ -127,7 +127,7 @@ version of the application server). Therefore, you do not need to provision the
 environment from the scratch every time when you deploy a new version. There
 are several options for that:
 
-* Use external configuration management (CM) tool for provisioning (call it
+* Use an external configuration management (CM) tool for provisioning (call it
   from the `provision` task). Most of the modern CM tools allow defining the
   target state declaratively. If the target system is in the target state, then
   CM tool does nothing ('idempotency'). At the same time, if there is any
