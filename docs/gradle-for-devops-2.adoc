@@ -5,7 +5,7 @@
 
 In the link:gradle-for-devops-1.html[first part], we discussed several features
 of Gradle, a popular open source build tool, that allow using it in a DevOps
-word. Specifically, Gradle's task-based approach can be used for general
+world. Specifically, Gradle's task-based approach can be used for general
 operations, such as provisioning or deployment. In this part, we will discuss
 how to set and use parameters in your Groovy project.
 
@@ -323,15 +323,15 @@ this perspective, you can use `gradle.properties` to list all available
 properties and to set their default values.
 
 Another option is to set a default value directly in the build file. You can
-use `project.hasProperty()` for this. For example:
+use `project.findProperty()` for this. For example:
 
 .build.gradle
 [source,groovy]
 ----
 ext {
-    host = project.hasProperty("host") ? host : "127.0.0.1" // <1>
-    user = project.hasProperty("user") ? user : "root"      // <2>
-    port = project.hasProperty("port") ? port : 8080        // <3>
+    host = project.findProperty("host") ?: "127.0.0.1" // <1>
+    user = project.findProperty("user") ?: "root"      // <2>
+    port = project.findProperty("port") ?: 8080        // <3>
 }
 
 task checkConnection {
