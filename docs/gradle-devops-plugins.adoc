@@ -1,0 +1,83 @@
+= DevOps Plugins for Gradle
+
+My subjective list of the most useful Gradle plugins for DevOps.
+The work is in progress.
+Feel free to send your comments and proposals to `paul` at `linchpiner` dot `com`. 
+
+:numbered:
+
+== Gradle SSH Plugin
+
+https://gradle-ssh-plugin.github.io/
+
+Gradle SSH Plugin is the perfect tool for general purpose operations on remote servers.
+It support parallel operations, local and remote
+link:https://gradle-ssh-plugin.github.io/docs/#_enable_the_port_forwarding[port forwarding],
+and
+link:https://gradle-ssh-plugin.github.io/docs/#_gateway_access[ssh gateways] 
+to connect to a remote server through one or more gateway servers.
+
+== Gradle VFS Plugin
+
+https://github.com/ysb33r/groovy-vfs
+
+Groovy VFS adds a nice DSL for operations with local and remote files and directories.
+For example, you can download a remote file from one server using HTTP and upload the file to another server using SFTP.
+Another useful example, is extracting a single file from a remote archive.
+Various sources and destinations are supported: the plugin uses
+link:http://commons.apache.org/proper/commons-vfs/[Apache Commons VFS]
+libraries.
+
+== Gradle Vagrant Plugin
+
+https://github.com/bmuschko/gradle-vagrant-plugin
+
+Gradle plugin for managing link:https://www.vagrantup.com/[Vagrant] boxes.
+Uses locally installed Vagrant.
+By default the plugin validates the installation of the Vagrant runtime and the selected provider.
+
+== Gradle Packer Plugin
+
+https://github.com/FIDATA/gradle-packer-plugin
+
+Gradle plugin for running link:https://www.packer.io/[Packer] builds.
+Requires locally installed Packer.
+For AWS builders, it also requires locally installed AWS CLI.
+
+== Gradle AWS Plugin
+
+https://github.com/classmethod/gradle-aws-plugin
+
+Gradle AWS plugin provides useful tasks to manage AWS resources for various services, such as S3, EC2, RDS, Lambda, and others.
+
+== Gradle Docker Plugins
+
+https://github.com/palantir/gradle-docker
+
+Three Gradle plugins for working with Docker containers,
+which provide basic tasks for building and pushing docker images,
+task for populating placeholders in a docker-compose template file with image versions resolved from dependencies,
+tasks for starting, stopping, statusing and cleaning up a named container based on a specified image.
+Plugins require locally installed Docker CLI.
+
+== Gradle Jenkins Plugin
+
+https://github.com/AOEpeople/gradle-jenkins-job-dsl-plugin
+
+Gradle plugin that provides some support tasks for maintaining a Jenkins Job DSL Script repository.
+Allows local testing of DSL scripts, local generation of Jenkins config XML files.
+
+== Gradle Cloud Deployer
+
+https://github.com/qaware/gradle-cloud-deployer
+
+Gradle plugin to deploy applications to Kubernetes and Marathon.
+Apps and Groups are supported for Marathon.
+Deployments, Services, Replication Controllers, Pods are supported for Kubernetes.
+
+
+== Heroku Gradle Plugin
+
+https://github.com/heroku/heroku-gradle
+
+A Gradle plugin for deploying JAR and WAR files to Heroku.
