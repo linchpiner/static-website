@@ -1,39 +1,48 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
+plugins {
+    id 'org.asciidoctor.jvm.convert' version '3.1.0'
+    id 'org.asciidoctor.jvm.gems' version '3.1.0'
+}
 
-    dependencies {
-        classpath 'org.asciidoctor:asciidoctor-gradle-plugin:1.5.3'
-        classpath 'com.github.jruby-gradle:jruby-gradle-plugin:1.4.0'
-        classpath 'org.asciidoctor:asciidoctorj-pdf:1.5.0-alpha.15'
+repositories {
+    jcenter()
+    ruby {
+        gems()
     }
 }
 
-apply plugin: 'org.asciidoctor.convert'
-apply plugin: 'com.github.jruby-gradle.base'
+//buildscript {
+//    repositories {
+//        jcenter()
+//    }
+//
+//    dependencies {
+//        classpath 'org.asciidoctor:asciidoctor-gradle-plugin:1.5.3'
+//        classpath 'com.github.jruby-gradle:jruby-gradle-plugin:1.4.0'
+//        classpath 'org.asciidoctor:asciidoctorj-pdf:1.5.0-alpha.15'
+//    }
+//}
+//
+//apply plugin: 'org.asciidoctor.convert'
+//apply plugin: 'com.github.jruby-gradle.base'
+//
 
 dependencies {
-    gems 'rubygems:asciidoctor:1.5.5'
-    gems 'rubygems:ttfunk:1.4.0'
-    gems 'rubygems:prawn:2.1.0'
-    gems 'rubygems:slim:3.0.8'
-    gems 'rubygems:thread_safe:0.3.5'
-    gems 'rubygems:asciidoctor-diagram:1.5.4'
+    asciidoctorGems 'rubygems:asciidoctor:1.5.5'
+    asciidoctorGems 'rubygems:ttfunk:1.4.0'
+    asciidoctorGems 'rubygems:prawn:2.1.0'
+    asciidoctorGems 'rubygems:slim:3.0.8'
+    asciidoctorGems 'rubygems:thread_safe:0.3.5'
+    asciidoctorGems 'rubygems:asciidoctor-diagram:1.5.4'
 }
 
 asciidoctor {
-    dependsOn jrubyPrepare
-    requires = ['asciidoctor-diagram']
-    gemPath = jrubyPrepare.outputDir
-    //backends 'html5', 'pdf'
-    backends 'html5'
+    baseDirFollowsSourceFile()
     sourceDir = file("docs")
     sources {
         include '**/*.adoc'
         exclude '**/_*.adoc'
     }
-    outputDir = file("build/docs")    
+    outputDir = file("build/docs")
     attributes 'source-highlighter': 'prettify',
                'icons':              'font',
                'nofooter':           'true',
