@@ -3,6 +3,8 @@ plugins {
     id 'org.asciidoctor.jvm.gems' version '3.1.0'
 }
 
+defaultTasks 'asciidoctor'
+
 repositories {
     jcenter()
     ruby {
@@ -52,6 +54,6 @@ asciidoctor {
 }
 
 task copyOutput(type: Copy) {
-    from "build/docs/html5"
+    from "build/docs/"
     into "../linchpiner.github.io/"
 }
