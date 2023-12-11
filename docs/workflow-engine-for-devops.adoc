@@ -1,0 +1,77 @@
+= Workflow engine for DevOps
+
+== Tasks
+
+A workflow is a directed acyclic graph (DAG).
+The nodes of that graph are tasks, minimal executable units of a workflow.
+The directed edges (or arcs) of that graph represent dependencies or order between tasks.
+
+Each task has a unique name and optional set of tags.
+
+== Dependency and order
+
+* Dependency: if task T1 "depends on" task T2, then T2 is always executed before T1 even if only T1 needs to be executed.
+* Order: if task T1 "runs after" task T2, then T2 is executed before T1 if both tasks need to be executed.
+  If only T1 needs to be executed, then T2 will not be executed.
+
+An example of using the order between tasks:
+
+* There are two tasks, for example, "Test1" and "Test2" that executes two tests.
+  If there are no direct or indirect dependency or order between "Test1" and "Test2", then they can be executed in parallel, or only one can be executed.
+* Third task, for example, "Report" processes tests result and generates a report.
+  A report can be generated for Test1, Test2, or both.
+
+Both standard dependency and order are "strong", which means that if T2 depends on (or runs after) T1 and T1 fails, then a whole workflow fails and T2 will not be executed.
+
+Sometimes you need a "weak" dependency, so T2 will be executed even if T1 fails.
+An example of the weak dependency can be a finalization task that runs even if some tasks it finalizes fail.
+
+* Finalize: if task F "finalizes" task T, then F is always executed after T even if T fails.
+
+A side note on systemd, which uses the following definitions:
+
+* Dependency: "wants" (strong), "requires" (weak).
+* Order: "before", "after".
+
+== Execution
+
+There is always at least one default task in a workflow.
+A default task can be explicitly specified, or the first defined tasks will be used as the default one.
+
+* If nothing specified, a default task will be added to the execution plan.
+* You can specify a single task or several tasks to add to the execution plan.
+* Instead of specifying a task, you can specify regex, all matching tasks will be added to the execution plan.
+* Instead of specifying tasks, you can specify a tag or several tags, all tasks with the specified tags will be added to the execution plan.
+* Instead of specifying a tag, you can specify a regex, all tasks with matching tags will be added to the execution plan.
+
+Then for every task in the execution plan all direct and indirect dependencies are added.
+
+Then you can specify which tasks should be removed from the execution plan:
+
+* You can specify a task, tasks, or regex to skip, all matching tasks are removed from the execution plan.
+* You can specify a tag, tags, or regex to skip, all matching tasks are removed from the execution plan.
+
+Execution alias is a short unique name that can be used to specify which tasks/tags need to be included/excluded.
+
+== Task predicates
+
+* Predicate "only if" is used to conditionally execute a task.
+* Predicate "skip if" is used to conditionally skip a task.
+
+== Task inputs and outputs
+
+Inputs:
+
+* Constants.
+* Environment variables, configuration file.
+* Outputs of other tasks.
+
+Tasks outputs can be persisted or calculated.
+An error is returned if an output is requested for a task that was never executed, cannot calculate its output, or the output was not persisted.
+
+== Other requirements
+
+Most workflow engines have DSL to define a workflow and embed code snippets for task definitions.
+We want standard programming languages to be first class citizens in workflow.
+That means there needs to be API that can be used to embed and use workflows in the program.
+

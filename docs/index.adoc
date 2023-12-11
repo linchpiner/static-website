@@ -12,3 +12,4 @@ include::_gradle-for-devops-links.adoc[]
 == Miscellaneous
 
 * link:maas-statuses-and-actions.html[Metal as a Service (MaaS) Statues and Actions]
+* link:workflow-engine-for-devops.html[Workflow engine for DevOps]

@@ -2,7 +2,7 @@
 
 == What is a Pod
 
-A Pod is is the smallest deployable unit that can be deployed and managed by Kubernetes.
+A Pod is the smallest deployable unit that can be deployed and managed by Kubernetes.
 In other words, if you need to run a single container in Kubernetes, then you need to create a Pod for that container.
 At the same time, a Pod can contain more than one container, if these containers are relatively tightly coupled.
 In a pre-container world, they would have executed on the same server.
